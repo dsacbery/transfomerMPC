@@ -1,0 +1,40 @@
+# macOS / Windows
+.DS_Store
+Thumbs.db
+
+# MATLAB / Simulink generated files
+slprj/
+*_simulink_cache*/
+*.slxc
+*.asv
+*.autosave
+*.m~
+*.tmp
+
+# Generated logs and results
+logs/*
+results/*
+data/raw/*
+data/generated/*
+!logs/README.md
+!results/README.md
+!data/raw/README.md
+!data/generated/README.md
+
+# Build artifacts
+*.mex*
+*.dll
+*.so
+*.dylib
+
+# Private credentials and local settings
+.env
+.env.*
+*.key
+*.pem
+*.token
+credentials.*
+
+# Local machine files
+private/
+local/

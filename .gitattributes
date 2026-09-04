@@ -1,0 +1,12 @@
+*.m       text eol=lf
+*.md      text eol=lf
+*.json    text eol=lf
+*.yaml    text eol=lf
+*.yml     text eol=lf
+
+*.slx     binary
+*.sldd    binary
+*.mat     binary
+*.sim     binary
+*.par     binary
+*.rdf     binary
