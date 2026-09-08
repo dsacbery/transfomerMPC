@@ -6,11 +6,17 @@ classdef TestSignalContracts < matlab.unittest.TestCase
     end
 
     methods (TestClassSetup)
-        function addScriptPath(testCase)
+        function addProjectPaths(testCase)
             projectRoot = fileparts(fileparts(mfilename('fullpath')));
             scriptsPath = fullfile(projectRoot, 'scripts');
+            configPath = fullfile(projectRoot, 'config');
+            sourcePath = fullfile(projectRoot, 'src');
             testCase.applyFixture( ...
                 matlab.unittest.fixtures.PathFixture(scriptsPath));
+            testCase.applyFixture( ...
+                matlab.unittest.fixtures.PathFixture(configPath));
+            testCase.applyFixture( ...
+                matlab.unittest.fixtures.PathFixture(sourcePath));
         end
     end
 
@@ -139,6 +145,78 @@ classdef TestSignalContracts < matlab.unittest.TestCase
                 'cmd_valid', 'boolean', 1, ''; ...
                 'hold_last_cmd', 'boolean', 1, ''; ...
                 'control_mode_id', 'uint8', 1, ''});
+        end
+
+        function testTmpsimConfigFreezesP0Contract(testCase)
+            cfg = tmpsim_config();
+
+            testCase.verifyEqual(cfg.sample.Ts_mpc, 0.02, AbsTol=1e-12);
+            testCase.verifyEqual(cfg.sample.Ts_tr, 0.10, AbsTol=1e-12);
+            testCase.verifyEqual(cfg.history.L, 16);
+            testCase.verifyEqual(cfg.history.n_feature, 14);
+            testCase.verifyEqual(cfg.feature_order, [ ...
+                "vx", "vy", "yaw_rate", "ay", "beta", "delta_meas", ...
+                "delta_rate_meas", "ax_meas", "e_y", "e_psi", ...
+                "e_y_rate", "e_psi_rate", "kappa_ref", "v_ref_base"]);
+            testCase.verifyEqual(cfg.mpc.Np, 15);
+            testCase.verifyEqual(cfg.mpc.Nc, 5);
+            testCase.verifyEqual(cfg.environment.matlab_release, "R2024b");
+            testCase.verifyEqual(cfg.environment.carsim_version, "2019.1");
+            testCase.verifyEqual(cfg.convention.delta_positive, "left");
+            testCase.verifyEqual(cfg.convention.yaw_positive, "left");
+            testCase.verifyEqual(cfg.convention.ay_positive, "left");
+        end
+
+        function testVehicleParametersMatchCClassEvidence(testCase)
+            vehicle = vehicle_params();
+
+            testCase.verifyEqual(vehicle.mass, 1501.0, AbsTol=1e-12);
+            testCase.verifyEqual(vehicle.Iz, 2192.089539, AbsTol=1e-9);
+            testCase.verifyEqual(vehicle.wheelbase, 2.910, AbsTol=1e-12);
+            testCase.verifyEqual(vehicle.lf, 1.049562958, AbsTol=1e-9);
+            testCase.verifyEqual(vehicle.lr, 1.860437042, AbsTol=1e-9);
+            testCase.verifyEqual(vehicle.Cf, 159055.11037704, AbsTol=1e-6);
+            testCase.verifyEqual(vehicle.Cr, 92776.4754843415, AbsTol=1e-6);
+            testCase.verifyEqual(vehicle.source.dataset, "C-Class, Hatchback");
+            testCase.verifyEqual(vehicle.source.evidence_run, "day2_export_smoke");
+            testCase.verifyEqual(vehicle.tire.linearization, ...
+                "small_slip_0p5_deg_at_static_load");
+        end
+
+        function testConfigValidationAcceptsFrozenP0Config(testCase)
+            cfg = tmpsim_config();
+
+            testCase.verifyWarningFree( ...
+                @() tmpsim.validateOnlineConfig(cfg));
+        end
+
+        function testConfigValidationRejectsNonIntegerTransformerRate(testCase)
+            cfg = tmpsim_config();
+            cfg.sample.Ts_tr = 0.07;
+
+            testCase.verifyError( ...
+                @() tmpsim.validateOnlineConfig(cfg), ...
+                'tmpsim:InvalidSampleRateRatio');
+        end
+
+        function testConfigValidationRejectsUnexpectedFeatureOrder(testCase)
+            cfg = tmpsim_config();
+            cfg.feature_order(1) = "vy";
+
+            testCase.verifyError( ...
+                @() tmpsim.validateOnlineConfig(cfg), ...
+                'tmpsim:InvalidFeatureOrder');
+        end
+
+        function testConfigValidationRejectsInvalidFeatureStatistics(testCase)
+            cfg = tmpsim_config();
+            featureStats.mean_train = zeros(1, 14);
+            featureStats.std_train = [0 ones(1, 13)];
+            featureStats.feature_order = cfg.feature_order;
+
+            testCase.verifyError( ...
+                @() tmpsim.validateOnlineConfig(cfg, featureStats), ...
+                'tmpsim:InvalidFeatureStatsValues');
         end
     end
 end

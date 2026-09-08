@@ -19,4 +19,6 @@ Verified against the `day2_export_smoke` run of the CarSim Quick Start DLC examp
 
 `StrAV_SW` is steering-wheel angular rate and is retained only as a diagnostic signal. It must not be used as `delta_rate_meas` unless a validated steering-ratio and sign conversion is introduced.
 
-The CarSim-to-internal sign convention for a known left turn remains to be verified in the Day 4 interface test. The internal convention is `delta > 0` for a front-wheel left turn.
+The sign convention is verified for the evidence run. CarSim 2019.1 Steering Systems documentation defines a positive steering input as a turn to the left and requires front road-wheel steer to increase for that input. The first DLC maneuver has positive `Steer_L1` together with positive `Yaw`, `AVz`, and `Ay`; the internal convention is therefore `delta > 0`, `yaw > 0`, and `ay > 0` for a left turn.
+
+The CarSim-Simulink connection itself remains unverified until the Day 3/4 interface work.

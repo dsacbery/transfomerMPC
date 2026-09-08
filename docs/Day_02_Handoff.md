@@ -1,8 +1,8 @@
-# Day 2 Handoff: Signal Contract and Configuration
+# Day 2 Completion Handoff
 
 ## Current Status
 
-Day 2 is partially complete. The Simulink Data Dictionary and all eight Bus contracts are implemented and verified. The two required configuration files and executable feature-order metadata are not yet implemented, so Day 2 must not be marked complete.
+Day 2 is complete. The Simulink Data Dictionary, eight Bus contracts, executable configuration, vehicle parameters, feature order, and configuration validation are implemented and verified.
 
 ## Completed and Verified
 
@@ -12,57 +12,52 @@ Day 2 is partially complete. The Simulink Data Dictionary and all eight Bus cont
 - `model/tmpsim_online.sldd` contains `RefBus`, `MeasBus`, `ErrBus`, `HistoryBus`, `RiskRawBus`, `RiskBus`, `MPCParamBus`, and `CmdBus`.
 - `HistoryBus.window` is `16x14 double`; continuous values are `double`, flags are `boolean`, and status or mode IDs are `uint8`.
 - `scripts/create_tmpsim_dictionary.m` recreates the Data Dictionary contract deterministically.
-- `tests/TestSignalContracts.m` contains five passing MATLAB contract tests.
+- `config/tmpsim_config.m` freezes P0 sampling, history, MPC, risk, speed, state-code, feature-order, and left-positive sign conventions.
+- `config/vehicle_params.m` stores the C-Class Hatchback parameters derived from the evidence run, including nominal small-slip tire linearization values.
+- `src/+tmpsim/validateOnlineConfig.m` rejects invalid sample-rate ratios, history shapes, feature orders, bounds, and optional feature-statistics metadata.
+- `tests/TestSignalContracts.m` contains eleven passing MATLAB contract tests.
 
 Run the verification from the project root:
 
 ```matlab
 cd('D:\Desktop\TransformerMPC')
 addpath('scripts')
+addpath('config')
+addpath('src')
 create_tmpsim_dictionary()
+
+cfg = tmpsim_config();
+tmpsim.validateOnlineConfig(cfg)
 
 results = runtests('tests/TestSignalContracts.m');
 assertSuccess(results)
 ```
 
-## Remaining Day 2 Work
-
-1. Create `config/tmpsim_config.m`.
-   - Return the `cfg` structure.
-   - Freeze `Ts_mpc=0.02`, `Ts_tr=0.10`, `history.L=16`, `history.n_feature=14`, `Np=15`, and `Nc=5`.
-   - Store the 14-element feature order as executable metadata, not only in Markdown.
-   - Include the P0 MPC, risk, and speed baseline bounds from the implementation blueprint.
-   - Record `MATLAB R2024b` and `CarSim 2019.1` as the actual local environment; do not put absolute paths or license information in the configuration.
-
-2. Create `config/vehicle_params.m` from the C-Class Hatchback used by `day2_export_smoke`.
-   - The expanded CarSim result gives total mass `1501 kg`, yaw inertia `2192.089539 kg*m^2`, wheelbase `2.910 m`, `lf=1.049562958 m`, and `lr=1.860437042 m`.
-   - The nominal small-slip tire-table linearization gives candidate axle cornering stiffnesses `Cf=159055.11037704 N/rad` and `Cr=92776.4754843415 N/rad`.
-   - Treat `Cf` and `Cr` as nominal linearization values. Before the Day 7 lateral MPC is accepted, verify the operating-point selection and sign convention against CarSim. Do not replace them with guessed values.
-
-3. Extend `TestSignalContracts.m` after configuration files exist.
-   - Verify the executable 14-column feature order exactly matches the frozen interface:
+## Frozen Feature Order
 
 ```text
 vx, vy, yaw_rate, ay, beta, delta_meas, delta_rate_meas,
 ax_meas, e_y, e_psi, e_y_rate, e_psi_rate, kappa_ref, v_ref_base
 ```
 
-   - Verify `Ts_tr/Ts_mpc` is an integer and the required `cfg` bounds are internally consistent.
+## Evidence Vehicle Parameters
 
-4. Complete the remaining manual CarSim convention check.
-   - Verify, using a known left-turn maneuver, that the sign of `Steer_L1`/`Steer_R1`, `Yaw`, `AVz`, and `Ay` is consistent with the internal rule `delta > 0` for a front-wheel left turn.
-   - Keep the CarSim raw-to-SI conversions in `docs/CarSim_2019_1_Signal_Inventory.md` as the single source of truth.
+- C-Class Hatchback from `day2_export_smoke`: `m=1501 kg`, `Iz=2192.089539 kg*m^2`, wheelbase `2.910 m`, `lf=1.049562958 m`, and `lr=1.860437042 m`.
+- The nominal small-slip tire-table linearization gives `Cf=159055.11037704 N/rad` and `Cr=92776.4754843415 N/rad`.
+- Treat `Cf` and `Cr` as nominal linearization values. Before accepting the Day 7 lateral MPC, verify the operating-point choice against CarSim; do not replace them with guessed values.
+- The left-positive convention is verified: `delta > 0`, `yaw > 0`, and `ay > 0` represent a left turn. The raw-to-SI mapping remains in `docs/CarSim_2019_1_Signal_Inventory.md`.
 
-## Do Not Start Yet
+## Start Day 3 Next
 
-- Do not create `model/tmpsim_online.slx`; that is Day 3.
-- Do not implement `CarSimAdapter.m`; that is Day 4.
-- Do not connect the Transformer, Risk Supervisor, or MPC before the fixed-MPC baseline stage.
-- Do not add CarSim installation files, generated results, caches, or license files to this repository.
+1. Create `model/tmpsim_online.slx` and attach `model/tmpsim_online.sldd`.
+2. Add only the Day 3 top-level subsystem skeleton and mock outputs; do not implement `CarSimAdapter.m` yet.
+3. Set `Ts_mpc=0.02 s` at block or port level. Do not set sample time on `Simulink.BusElement`.
+4. Verify CarSim 2019.1 can launch a Simulink interface using MATLAB R2024b before relying on the external plant connection.
+5. Do not connect the Transformer, Risk Supervisor, or MPC before the fixed-MPC baseline stage. Do not add CarSim installation files, generated results, caches, or license files to this repository.
 
 ## Local CarSim Context
 
 - CarSim program: `D:\Carsim\carsim2019.1`.
 - Active local database: `D:\Desktop\Carsim`.
 - Evidence run: `day2_export_smoke`, based on Quick Start `DLC @ 120 km/h` and C-Class Hatchback.
-- The CarSim 2019.1 and MATLAB R2024b Simulink interface has not yet been validated. Perform that compatibility check during the Day 3/4 interface work.
+- The CarSim 2019.1 and MATLAB R2024b Simulink interface is not yet validated. Perform that compatibility check during the Day 3/4 interface work.
