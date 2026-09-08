@@ -146,6 +146,7 @@
 - `MeasBus`
 - `ErrBus`
 - `HistoryBus`
+- `RiskRawBus`
 - `RiskBus`
 - `MPCParamBus`
 - `CmdBus`

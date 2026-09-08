@@ -36,7 +36,7 @@
 | 项目 | P0 默认值 | 说明 |
 |---|---:|---|
 | MATLAB | R2023b 或更新版本 | 以 `dlnetwork`、Bus Editor 和 `matlab.unittest` 可用为前提 |
-| CarSim | 2023.1 或更新版本 | 具体版本在 `case_meta.json` 中记录 |
+| CarSim | 2019.1（当前环境） | 已验证 VS Browser 输出；CarSim-Simulink 接口与 MATLAB R2024b 的兼容性必须在第 3/4 天单独验证，并在 `case_meta.json` 中记录 |
 | 控制周期 `Ts_mpc` | `0.02 s` | 所有高频控制子系统使用同一基准周期 |
 | Transformer 周期 `Ts_tr` | `0.10 s` | 必须是 `Ts_mpc` 的整数倍，P0 为 5 倍 |
 | 历史长度 `L` | `16` | 与原 Python demo 的 `history_len` 保持一致 |
@@ -53,7 +53,7 @@
 建议在当前工程目录下创建以下结构。目录名可以调整，但文件职责和接口名称必须保持不变。
 
 ```text
-TransformerMPCSimulink/
+TransformerMPC/
 ├── model/
 │   ├── tmpsim_online.slx                 # 唯一顶层闭环模型
 │   ├── tmpsim_online.sldd                # Bus、枚举、参数数据字典
@@ -462,7 +462,7 @@ ax_cmd = clip(ax_cmd, ax_prev-jerk_max*Ts_mpc, ax_prev+jerk_max*Ts_mpc)
 实现文件：`src/+tmpsim/CarSimAdapter.m`。
 
 - 建立一张显式的 CarSim 信号映射表，包含原始名称、单位、方向和转换系数。
-- 测量侧完成角度制到弧度制、方向盘角到前轮角的转换，并对有限性进行检查。
+- 测量侧完成角度制到弧度制、速度和加速度单位转换，并对有限性进行检查。当前 CarSim 配置直接输出 `Steer_L1`/`Steer_R1` 路轮角，因此取其平均值后转换为前轮角；只有路轮角不可用时才允许由方向盘角和经验证的传动比推导。
 - 命令侧将 `ax_cmd >= 0` 映射为 throttle、`ax_cmd < 0` 映射为 brake；两者互斥且均限幅到 `[0,1]`。
 - `cmd_valid=false` 或 `hold_last_cmd=true` 时输出上一次经过限幅的有效命令；仿真复位时输出零转角和零加速度。
 - 记录适配前后信号，便于定位 CarSim 端的符号或单位错误。
@@ -577,7 +577,7 @@ ax_cmd = clip(ax_cmd, ax_prev-jerk_max*Ts_mpc, ax_prev+jerk_max*Ts_mpc)
 - Test: `tests/TestSignalContracts.m`
 
 - [ ] 定义第 1 节全部默认参数和车辆参数。
-- [ ] 在 Data Dictionary 中创建 8 个 Bus，并为每个元素设置名称、固定维度、数据类型和采样时间。
+- [ ] 在 Data Dictionary 中创建 8 个 Bus，并为每个元素设置名称、固定维度、数据类型、单位和描述。不要在 `Simulink.BusElement` 上设置采样时间；在第 3 天为模块端口和块设置 `Ts_mpc` 或 `Ts_tr`。
 - [ ] 为 `feature_order`、状态码和 `control_mode_id` 创建枚举或常量表。
 - [ ] 实现 `validateOnlineConfig(cfg)`，检查 `Ts_tr/Ts_mpc` 为整数、`L=16`、特征统计量合法、约束上下界一致。
 - [ ] 运行 `results = runtests('tests/TestSignalContracts.m'); assertSuccess(results);`，预期全部通过。
@@ -681,7 +681,7 @@ ax_cmd = clip(ax_cmd, ax_prev-jerk_max*Ts_mpc, ax_prev+jerk_max*Ts_mpc)
 
 ## 11. 启动、运行和回归命令
 
-在 MATLAB 当前目录切换到 `TransformerMPCSimulink/` 后执行：
+在 MATLAB 当前目录切换到项目根目录（本仓库为 `TransformerMPC/`）后执行：
 
 ```matlab
 run('scripts/setup_tmpsim.m');
