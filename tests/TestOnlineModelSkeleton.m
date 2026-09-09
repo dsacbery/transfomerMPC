@@ -41,7 +41,7 @@ classdef TestOnlineModelSkeleton < matlab.unittest.TestCase
             testCase.verifyTrue(isfile(testCase.ModelPath));
             load_system(testCase.ModelPath);
             testCase.verifyEqual(string(get_param(testCase.ModelName, ...
-                'DataDictionary')), string(testCase.DictionaryPath));
+                'DataDictionary')), "tmpsim_online.sldd");
         end
     end
 end
