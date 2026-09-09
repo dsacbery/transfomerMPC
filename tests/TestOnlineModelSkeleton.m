@@ -43,5 +43,76 @@ classdef TestOnlineModelSkeleton < matlab.unittest.TestCase
             testCase.verifyEqual(string(get_param(testCase.ModelName, ...
                 'DataDictionary')), "tmpsim_online.sldd");
         end
+
+        function testBuilderPreservesFrozenDictionary(testCase)
+            dictionaryBefore = readFileBytes(testCase.DictionaryPath);
+
+            create_tmpsim_online_model();
+
+            dictionaryAfter = readFileBytes(testCase.DictionaryPath);
+            testCase.verifyEqual(dictionaryAfter, dictionaryBefore);
+        end
+
+        function testTopLevelContainsRequiredSubsystems(testCase)
+            create_tmpsim_online_model();
+            load_system(testCase.ModelPath);
+
+            expected = ["ScenarioManager", "CarSimAdapter", ...
+                "ErrorFeatureBuilder", "HistoryBuffer", ...
+                "TransformerRisk", "RiskSupervisor", ...
+                "LateralControllerVariant", "SpeedOuterLoop", "Logger"];
+            subsystemPaths = find_system(testCase.ModelName, ...
+                'SearchDepth', 1, 'BlockType', 'SubSystem');
+            actual = string(get_param(subsystemPaths, 'Name'));
+
+            testCase.verifyEqual(sort(actual(:)), sort(expected(:)));
+        end
+
+        function testModelCompilesAtFrozenRates(testCase)
+            create_tmpsim_online_model();
+            addpath(fullfile(testCase.ProjectRoot, 'model'));
+            load_system(testCase.ModelPath);
+
+            testCase.verifyWarningFree(@() set_param(testCase.ModelName, ...
+                'SimulationCommand', 'update'));
+            testCase.verifyEqual(get_param(testCase.ModelName, 'FixedStep'), ...
+                '0.02');
+            sampleTimes = get_param({ ...
+                'tmpsim_online/ScenarioManager/RefBus_x_ref', ...
+                'tmpsim_online/TransformerRisk/RiskRawBus_r_low_raw'}, ...
+                'SampleTime');
+            testCase.verifyEqual(string(sampleTimes(:)), ["0.02"; "0.1"]);
+        end
+
+        function testBusElementsDoNotOwnSampleTimes(testCase)
+            dictionary = Simulink.data.dictionary.open(testCase.DictionaryPath);
+            testCase.addTeardown(@() close(dictionary));
+            entries = find(getSection(dictionary, 'Design Data'));
+
+            for entryIndex = 1:numel(entries)
+                bus = getValue(entries(entryIndex));
+                for elementIndex = 1:numel(bus.Elements)
+                    testCase.verifyEqual(bus.Elements(elementIndex).SampleTime, ...
+                        -1);
+                end
+            end
+        end
+
+        function testShortMockSimulationCompletes(testCase)
+            create_tmpsim_online_model();
+            addpath(fullfile(testCase.ProjectRoot, 'model'));
+
+            out = sim(testCase.ModelPath, 'StopTime', '0.20');
+
+            testCase.verifyGreaterThanOrEqual( ...
+                out.SimulationMetadata.ModelInfo.StopTime, 0.20);
+        end
     end
+end
+
+function bytes = readFileBytes(filePath)
+fileId = fopen(filePath, 'r');
+cleanupFile = onCleanup(@() fclose(fileId));
+bytes = fread(fileId, Inf, '*uint8');
+clear cleanupFile
 end
